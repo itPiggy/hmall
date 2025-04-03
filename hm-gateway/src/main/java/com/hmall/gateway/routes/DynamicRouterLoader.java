@@ -26,7 +26,7 @@ public class DynamicRouterLoader {
 
     private final RouteDefinitionWriter writer;
 
-    private final String dataId = "gateway-route.json";
+    private final String dataId = "gateway-routes.json";
 
     private final String group = "DEFAULT_GROUP";
 

@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
 public class MyGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // TODO 模拟登录校验逻辑
+        // 模拟登录校验逻辑
         ServerHttpRequest request = exchange.getRequest();
         HttpHeaders headers = request.getHeaders();
         System.out.println("headers = " + headers);

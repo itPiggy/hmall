@@ -5,8 +5,10 @@ import com.hmall.api.clients.CartClient;
 import com.hmall.api.clients.ItemClient;
 import com.hmall.api.dto.ItemDTO;
 import com.hmall.api.dto.OrderDetailDTO;
+import com.hmall.common.config.MqConsumeErrorAutoConfiguration;
 import com.hmall.common.exception.BadRequestException;
 import com.hmall.common.utils.UserContext;
+import com.hmall.tradeservice.constants.MqConstant;
 import com.hmall.tradeservice.domain.dto.OrderFormDTO;
 import com.hmall.tradeservice.domain.po.Order;
 import com.hmall.tradeservice.domain.po.OrderDetail;
@@ -21,10 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -82,7 +81,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         //cartService.removeByItemIds(itemIds);
         //cartClient.removeByItemsIds(itemIds);
         try {
-            rabbitTemplate.convertAndSend("trade.topic", "order.create", itemIds);
+            Map<String, Object> messageData = new HashMap<>();
+            messageData.put("userId", UserContext.getUser());
+            messageData.put("itemIds", itemIds);
+            rabbitTemplate.convertAndSend("trade.topic", "order.create", messageData);
         }catch (Exception e){
             log.error("清理购物车失败，订单id{}", itemIds, e);
         }
@@ -93,6 +95,13 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         } catch (Exception e) {
             throw new RuntimeException("库存不足！");
         }
+
+        rabbitTemplate.convertAndSend(MqConstant.DELAY_DIRECT_NAME,
+                MqConstant.DELAY_ROUTING_KEY, order.getId(),
+                message -> {
+                    message.getMessageProperties().setDelay(10000);
+                    return message;
+                });
         return order.getId();
     }
 
@@ -103,6 +112,30 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         order.setStatus(2);
         order.setPayTime(LocalDateTime.now());
         updateById(order);
+    }
+
+    @Override
+    public void cancelOrder(Long orderId) {
+        // 取消订单信息
+        Order order = getById(orderId);
+        order.setStatus(5);
+        order.setUpdateTime(LocalDateTime.now());
+        updateById(order);
+
+        // 恢复库存
+        List<OrderDetailDTO> orderDetailDTOS = new ArrayList<>();
+        List<OrderDetail> orderDetails = detailService.lambdaQuery().eq(OrderDetail::getOrderId, orderId).list();
+        orderDetails.forEach(orderDetail -> {
+            OrderDetailDTO orderDetailDTO = new OrderDetailDTO()
+                    .setNum(-orderDetail.getNum())
+                    .setItemId(orderDetail.getItemId());
+            orderDetailDTOS.add(orderDetailDTO);
+        });
+        try{
+            itemClient.deductStock(orderDetailDTOS);
+        }catch (Exception e){
+            log.error("恢复库存失败，订单id{}", orderId, e);
+        }
     }
 
     private List<OrderDetail> buildDetails(Long orderId, List<ItemDTO> items, Map<Long, Integer> numMap) {
