@@ -1,0 +1,13 @@
+server:
+  port: 8084 #用户服务端口
+feign:
+  okhttp:
+    enabled: true
+  sentinel:
+    enabled: true
+hm:
+  swagger:
+    title: 交易服务接口文档
+    package: com.hmall.tradeservice.controller
+  db:
+    database: hm-trade

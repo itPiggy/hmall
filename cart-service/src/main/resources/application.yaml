@@ -1,0 +1,24 @@
+server:
+  port: 8082 #购物车服务端口
+  tomcat:
+    threads:
+      max: 25 #允许最大线程数
+    accept-count: 25 #允许最大排队等候数
+    max-connections: 100 #允许最大连接数
+feign:
+  okhttp:
+    enabled: true
+  sentinel:
+    enabled: true
+hm:
+  swagger:
+    title: 购物车服务接口文档
+    package: com.hmall.cartservice.controller
+  db:
+    database: hm-cart
+spring:
+  cloud:
+    sentinel:
+      transport:
+        dashboard: localhost:8090 #sentinel的访问地址
+      http-method-specify: true #开启对http方法的细粒度控制,即访问同一个url但是http方法不同,可以设置不同的限流规则（开启请求方式前缀）

@@ -1,0 +1,11 @@
+.idea
+*.iml
+out
+gen
+target
+*.class
+
+*.log
+.settings
+.project
+logs
